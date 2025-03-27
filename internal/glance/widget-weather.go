@@ -18,15 +18,16 @@ import (
 var weatherWidgetTemplate = mustParseTemplate("weather.html", "widget-base.html")
 
 type weatherWidget struct {
-	widgetBase   `yaml:",inline"`
-	Location     string                      `yaml:"location"`
-	ShowAreaName bool                        `yaml:"show-area-name"`
-	HideLocation bool                        `yaml:"hide-location"`
-	HourFormat   string                      `yaml:"hour-format"`
-	Units        string                      `yaml:"units"`
-	Place        *openMeteoPlaceResponseJson `yaml:"-"`
-	Weather      *weather                    `yaml:"-"`
-	TimeLabels   [12]string                  `yaml:"-"`
+	widgetBase    `yaml:",inline"`
+	Location      string                      `yaml:"location"`
+	LocationLabel string                      `yaml:"location-label"`
+	ShowAreaName  bool                        `yaml:"show-area-name"`
+	HideLocation  bool                        `yaml:"hide-location"`
+	HourFormat    string                      `yaml:"hour-format"`
+	Units         string                      `yaml:"units"`
+	Place         *openMeteoPlaceResponseJson `yaml:"-"`
+	Weather       *weather                    `yaml:"-"`
+	TimeLabels    [12]string                  `yaml:"-"`
 }
 
 var timeLabels12h = [12]string{"2am", "4am", "6am", "8am", "10am", "12pm", "2pm", "4pm", "6pm", "8pm", "10pm", "12am"}
