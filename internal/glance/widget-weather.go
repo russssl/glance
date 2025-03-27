@@ -18,16 +18,18 @@ import (
 var weatherWidgetTemplate = mustParseTemplate("weather.html", "widget-base.html")
 
 type weatherWidget struct {
-	widgetBase    `yaml:",inline"`
-	Location      string                      `yaml:"location"`
-	LocationLabel string                      `yaml:"location-label"`
-	ShowAreaName  bool                        `yaml:"show-area-name"`
-	HideLocation  bool                        `yaml:"hide-location"`
-	HourFormat    string                      `yaml:"hour-format"`
-	Units         string                      `yaml:"units"`
-	Place         *openMeteoPlaceResponseJson `yaml:"-"`
-	Weather       *weather                    `yaml:"-"`
-	TimeLabels    [12]string                  `yaml:"-"`
+	widgetBase `yaml:",inline"`
+	Locations  []struct {
+		Location string `yaml:"location"`
+		Label    string `yaml:"label"`
+	} `yaml:"locations"`
+	ShowAreaName bool                          `yaml:"show-area-name"`
+	HideLocation bool                          `yaml:"hide-location"`
+	HourFormat   string                        `yaml:"hour-format"`
+	Units        string                        `yaml:"units"`
+	Places       []*openMeteoPlaceResponseJson `yaml:"-"`
+	Weather      *weather                      `yaml:"-"`
+	TimeLabels   [12]string                    `yaml:"-"`
 }
 
 var timeLabels12h = [12]string{"2am", "4am", "6am", "8am", "10am", "12pm", "2pm", "4pm", "6pm", "8pm", "10pm", "12am"}
@@ -35,9 +37,21 @@ var timeLabels24h = [12]string{"02:00", "04:00", "06:00", "08:00", "10:00", "12:
 
 func (widget *weatherWidget) initialize() error {
 	widget.withTitle("Weather").withCacheOnTheHour()
-
-	if widget.Location == "" {
+	if len(widget.Locations) == 0 {
 		return fmt.Errorf("location is required")
+	}
+
+	if len(widget.Locations) > 5 {
+		return fmt.Errorf("maximum of 5 locations is allowed")
+	}
+
+	// if not every location has a label, and hide-location is true and locations length > 1 throw an error
+	if widget.HideLocation && len(widget.Locations) > 1 {
+		for i := range widget.Locations {
+			if widget.Locations[i].Label == "" {
+				return fmt.Errorf("label is required for every location when hide-location is true and multiple locations are used")
+			}
+		}
 	}
 
 	if widget.HourFormat == "" || widget.HourFormat == "12h" {
@@ -58,23 +72,32 @@ func (widget *weatherWidget) initialize() error {
 }
 
 func (widget *weatherWidget) update(ctx context.Context) {
-	if widget.Place == nil {
-		place, err := fetchOpenMeteoPlaceFromName(widget.Location)
-		if err != nil {
-			widget.withError(err).scheduleEarlyUpdate()
+	if widget.Places == nil {
+		for i := range widget.Locations {
+			place, err := fetchOpenMeteoPlaceFromName(widget.Locations[i].Location)
+			if err != nil {
+				widget.withError(err).scheduleEarlyUpdate()
+				return
+			}
+			place.Label = widget.Locations[i].Label
+
+			widget.Places = append(widget.Places, place)
+		}
+	}
+
+	for i := range widget.Places {
+		weather, err := fetchWeatherForOpenMeteoPlace(widget.Places[i], widget.Units)
+
+		if !widget.canContinueUpdateAfterHandlingErr(err) {
 			return
 		}
 
-		widget.Place = place
+		widget.Weather = weather
 	}
-
-	weather, err := fetchWeatherForOpenMeteoPlace(widget.Place, widget.Units)
-
-	if !widget.canContinueUpdateAfterHandlingErr(err) {
+	if widget.Weather == nil {
+		widget.withError(fmt.Errorf("no weather data available"))
 		return
 	}
-
-	widget.Weather = weather
 }
 
 func (widget *weatherWidget) Render() template.HTML {
@@ -111,6 +134,7 @@ type openMeteoPlaceResponseJson struct {
 	Timezone  string
 	Country   string
 	location  *time.Location
+	Label     string
 }
 
 type openMeteoWeatherResponseJson struct {

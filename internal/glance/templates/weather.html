@@ -21,15 +21,45 @@
         {{ end }}
     </div>
 
-    {{ if not .HideLocation }}
+    {{ if and (not .HideLocation) (gt (len .Places) 1) }}
+    <div class="flex items-center justify-center margin-top-15 gap-7 size-h5">
+        {{ range $place := .Places }}
+        <div class="location-icon"></div>
+        <div class="text-truncate">
+            {{ if $place.Label }}
+                {{ $place.Label }}
+            {{ else }}
+                {{ $place.Name }}
+            {{ end }}
+            {{if not $place.Label}}
+                {{ with $.ShowAreaName }}
+                    {{ if . }}
+                        {{ $place.Area }},
+                    {{ end }}
+                {{ end }}
+                {{ $place.Country }}
+            {{ end }}
+        </div>
+        {{ end }}
+    </div>
+    {{ else if and (not .HideLocation) (eq (len .Places) 1) }}
     <div class="flex items-center justify-center margin-top-15 gap-7 size-h5">
         <div class="location-icon"></div>
-
-        {{ if not .LocationLabel}}
-        <div class="text-truncate">{{ .Place.Name }},{{ if .ShowAreaName }} {{ .Place.Area }},{{ end }} {{ .Place.Country }}</div>
-        {{ else }}
-        <div class="text-truncate">{{ .LocationLabel }}</div>
-        {{ end }}
+        <div class="text-truncate">
+            {{ with index .Places 0 }}
+                {{ if .Label }}
+                    {{ .Label }}
+                {{ else }}
+                    {{ .Name }}
+                {{ end }},
+                {{ with $.ShowAreaName }}
+                    {{ if . }}
+                        {{ .Area }},
+                    {{ end }}
+                {{ end }}
+                {{ .Country }}
+            {{ end }}
+        </div>
     </div>
     {{ end }}
 </div>
